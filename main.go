@@ -54,16 +54,26 @@ func run() {
 func child() {
 	fmt.Printf("Running %v as %d\n", os.Args[2:], os.Getpid())
 
-	syscall.Sethostname([]byte("container"))
-	syscall.Chroot("./rootfs")
-	syscall.Chdir("/")
-	syscall.Mount("proc", "/proc", "proc", 0, "")
+	must(syscall.Sethostname([]byte("container")))
+
+	must(syscall.Chroot("./rootfs"))
+	must(syscall.Chdir("/"))
+
+	must(syscall.Mount("proc", "/proc", "proc", 0, ""))
+	must(syscall.Mount("tmpfs", "/dev", "tmpfs", 0, ""))
+
 	cmd := exec.Command(os.Args[2], os.Args[3:]...)
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
-	if err := cmd.Run(); err != nil {
-		fmt.Println("Error:", err)
+
+	must(cmd.Run())
+
+	must(syscall.Unmount("/proc", 0))
+}
+
+func must(err error) {
+	if err != nil {
+		panic(err)
 	}
-	syscall.Unmount("/proc", 0)
 }
